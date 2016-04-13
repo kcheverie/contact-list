@@ -1,10 +1,24 @@
-require_relative 'contact'
 require 'pry'
+require 'active_record'
 
-# Interfaces between a user and their contact list. Reads from and writes to standard I/O.
+require_relative 'contact'
+
+ActiveRecord::Base.logger = Logger.new(STDOUT)
+
+puts 'Establishing connection to database ...'
+ActiveRecord::Base.establish_connection(
+  adapter: 'postgresql',
+  database: 'contactlist',
+  username: 'development',
+  password: 'development',
+  host: 'localhost',
+  port: 5432,
+  pool: 5,
+  encoding: 'unicode',
+  min_messages: 'error'
+)
+
 class ContactList
-
-  # TODO: Implement user interaction. This should be the only file where you use `puts` and `gets`.
 
   input_array = ARGV
   
@@ -14,31 +28,44 @@ class ContactList
       name = STDIN.gets.chomp
       puts "Please enter an email address."
       email = STDIN.gets.chomp
-      puts Contact.create(name, email)
+      contact = Contact.create(name: name, email: email)
+      puts "#{contact.id}. #{contact.name} (#{contact.email}) added to database!"
     when "update"
       id = ARGV[1]
-      the_contact = Contact.find(id)
-      puts "#{the_contact.id}. #{the_contact.name} (#{the_contact.email})"
+      contact = Contact.find(id)
+      puts "#{contact.id}. #{contact.name} (#{contact.email})"
       puts "Please enter the new name."
       new_name = STDIN.gets.chomp
       puts "Please enter the new email address."
       new_email = STDIN.gets.chomp
-      puts the_contact.save(new_name, new_email)
+      contact.name = new_name
+      contact.email = new_email
+      contact.save
+      puts "#{contact.id}. #{contact.name} (#{contact.email}) updated in database!"
     when "list"
-      puts Contact.all
+      contacts =  Contact.order(:id)
+      contacts.each do |contact|
+        puts "#{contact.id}. #{contact.name} (#{contact.email})"
+      end
     when "show"
       id = ARGV[1]
-      puts Contact.find(id)   
+      contact = Contact.find(id.to_i)
+      puts "#{contact.id}. #{contact.name} (#{contact.email})"
+
     when "search"
       term = ARGV[1]
-      puts Contact.search(term) 
+      contacts = Contact.where("name LIKE ?", "%#{term}%")
+      contacts.each do |contact|
+        puts "#{contact.id}. #{contact.name} (#{contact.email})"
+      end 
     when "destroy"
       id = ARGV[1]
-      the_contact = Contact.find(id)
-      puts "Delete #{the_contact.id}. #{the_contact.name} (#{the_contact.email})? [y/n]"
+      contact = Contact.find(id)
+      puts "Delete #{contact.id}. #{contact.name} (#{contact.email})? [y/n]"
       answer = STDIN.gets.chomp.downcase
       if answer == 'y'
-        puts the_contact.destroy(id) 
+        contact.destroy
+        puts "#{contact.id}. #{contact.name} (#{contact.email}) has been deleted"
       end 
     else
       puts "Here is a list of available commands:"
